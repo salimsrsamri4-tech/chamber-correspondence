@@ -834,7 +834,7 @@ function init(){
   if(!loadDB() || !DB.transactions?.length) seedData();
   populateFilterSelects();
   populateReportGmFilter();
-  $('#todayPill').textContent = 'اليوم: ' + new Date().toLocaleDateString('ar-OM', {year:'numeric',month:'long',day:'numeric'}) + ' — عرض الشاشة: ' + window.innerWidth + 'px';
+  $('#todayPill').textContent = 'اليوم: ' + new Date().toLocaleDateString('ar-OM', {year:'numeric',month:'long',day:'numeric'});
   bindEvents();
   refreshScopeSelectors();
   setView('dashboard');
