@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>منصة إدارة المراسلات والمهام والمتابعة - مكتب الرئيس التنفيذي</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">غ</div>
+      <div class="brand-text">
+        <strong>منصة المراسلات</strong>
+        <span>مكتب الرئيس التنفيذي</span>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><i>1</i> لوحة التحكم الرئيسية</button>
+      <button class="nav-item" data-view="transactions"><i>2</i> تصنيف وتسجيل المراسلات</button>
+      <button class="nav-item" data-view="orgchart"><i>3</i> الهيكل التنظيمي</button>
+      <button class="nav-item" data-view="workflow"><i>4</i> دورة العمل</button>
+      <button class="nav-item" data-view="managers"><i>5</i> متابعة المديرين العموم</button>
+      <button class="nav-item" data-view="daily"><i>6</i> المتابعة اليومية</button>
+      <button class="nav-item" data-view="alerts"><i>7</i> التنبيهات</button>
+      <button class="nav-item" data-view="reports"><i>8</i> التقارير</button>
+      <button class="nav-item" data-view="permissions"><i>9</i> الصلاحيات</button>
+      <button class="nav-item" data-view="kpis"><i>10</i> مؤشرات الأداء</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button id="resetDataBtn">↺ إعادة تعيين البيانات التجريبية</button>
+      <span class="proto-badge">نموذج تفاعلي أولي — بيانات محلية فقط</span>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <header class="topbar">
+      <button class="hamburger" id="hamburgerBtn" aria-label="القائمة">☰</button>
+      <div class="topbar-title">
+        <h1 id="viewTitle">لوحة التحكم الرئيسية للرئيس التنفيذي</h1>
+        <span id="viewSubtitle">نظرة شاملة على أداء المراسلات والمهام</span>
+      </div>
+      <div class="topbar-controls">
+        <div class="ctrl">
+          <label>الدور الحالي</label>
+          <select id="roleSelect">
+            <option value="ceo">الرئيس التنفيذي</option>
+            <option value="office" selected>مكتب الرئيس التنفيذي</option>
+            <option value="gm">المدير العام</option>
+            <option value="deptHead">مدير الدائرة</option>
+            <option value="staff">الموظف</option>
+            <option value="auditor">المدقق</option>
+          </select>
+        </div>
+        <div class="ctrl" id="sectorScopeWrap" style="display:none">
+          <label>القطاع</label>
+          <select id="sectorScope"></select>
+        </div>
+        <div class="ctrl" id="deptScopeWrap" style="display:none">
+          <label>الدائرة</label>
+          <select id="deptScope"></select>
+        </div>
+        <div class="today-pill" id="todayPill"></div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- 1. Dashboard -->
+      <section class="view active" id="view-dashboard">
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="dash-grid">
+          <div class="card">
+            <h3>توزيع المراسلات حسب المدير العام</h3>
+            <div id="chartBySector" class="bars"></div>
+          </div>
+          <div class="card">
+            <h3>نسبة الإنجاز لكل قطاع</h3>
+            <div id="chartCompletion" class="bars"></div>
+          </div>
+          <div class="card wide">
+            <h3>القرارات التي تجاوزت المدة المحددة</h3>
+            <div class="table-wrap"><table id="overdueDecisionsTable"><thead></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Transactions -->
+      <section class="view" id="view-transactions">
+        <div class="toolbar">
+          <button class="btn primary" id="addTrxBtn">+ تسجيل معاملة جديدة</button>
+          <input type="text" id="trxSearch" placeholder="بحث بالموضوع أو رقم المعاملة...">
+          <select id="filterStatus"><option value="">كل الحالات</option></select>
+          <select id="filterSector"><option value="">كل القطاعات</option></select>
+          <select id="filterPriority"><option value="">كل الأولويات</option></select>
+        </div>
+        <div class="table-wrap">
+          <table id="trxTable">
+            <thead><tr>
+              <th>رقم المعاملة</th><th>التاريخ</th><th>الجهة</th><th>الموضوع</th>
+              <th>الأولوية</th><th>السرية</th><th>المدير العام</th><th>الدائرة</th>
+              <th>تاريخ الإنجاز</th><th>الحالة</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. Org chart -->
+      <section class="view" id="view-orgchart">
+        <div class="card">
+          <h3>ربط الهيكل التنظيمي</h3>
+          <p class="muted">كل معاملة تُسجَّل وتُحال إلى مدير عام مختص، ثم إلى الدائرة المختصة (وفروعها إن وجدت). اضغط لتوسيع القطاعات.</p>
+          <div id="orgTree" class="org-tree"></div>
+        </div>
+      </section>
+
+      <!-- 4. Workflow -->
+      <section class="view" id="view-workflow">
+        <div class="card">
+          <h3>دورة العمل (Workflow)</h3>
+          <div class="workflow-legend" id="workflowLegend"></div>
+        </div>
+        <div class="kanban" id="kanbanBoard"></div>
+      </section>
+
+      <!-- 5. Managers follow-up -->
+      <section class="view" id="view-managers">
+        <div class="tabs" id="managerTabs"></div>
+        <div id="managerPanel"></div>
+      </section>
+
+      <!-- 6. Daily follow-up -->
+      <section class="view" id="view-daily">
+        <div class="card">
+          <div class="daily-head">
+            <h3>المتابعة اليومية لمكتب الرئيس التنفيذي</h3>
+            <div class="legend">
+              <span><i class="dot done"></i> منجز</span>
+              <span><i class="dot progress"></i> قيد التنفيذ</span>
+              <span><i class="dot soon"></i> يقرب موعد الإنجاز</span>
+              <span><i class="dot late"></i> متأخر</span>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="dailyTable">
+              <thead><tr><th>الموضوع</th><th>الجهة</th><th>المسؤول</th><th>تاريخ الإنجاز</th><th>الحالة</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. Alerts -->
+      <section class="view" id="view-alerts">
+        <div class="card">
+          <h3>التنبيهات التلقائية</h3>
+          <p class="muted">تُرسل عند: إحالة معاملة، قبل موعد الإنجاز بـ3 أيام، عند التأخر، عند رفع الرد، عند اعتماد الرئيس التنفيذي.</p>
+          <div id="alertsList" class="alerts-list"></div>
+        </div>
+      </section>
+
+      <!-- 8. Reports -->
+      <section class="view" id="view-reports">
+        <div class="toolbar">
+          <select id="reportType">
+            <option value="weeklyCeo">تقرير أسبوعي للرئيس التنفيذي</option>
+            <option value="monthlyGm">تقرير شهري لكل مدير عام</option>
+            <option value="deptPerf">تقرير أداء الدوائر</option>
+            <option value="branchPerf">تقرير أداء الفروع</option>
+            <option value="overdue">تقرير المعاملات المتأخرة</option>
+            <option value="bySubject">تقرير المراسلات حسب الموضوع</option>
+            <option value="bySource">تقرير حسب الجهة الواردة</option>
+            <option value="byPriority">تقرير حسب الأولوية</option>
+            <option value="byConfidentiality">تقرير حسب السرية</option>
+          </select>
+          <select id="reportGmFilter" style="display:none"></select>
+          <button class="btn" id="exportCsvBtn">تصدير CSV</button>
+          <button class="btn" id="printReportBtn">طباعة</button>
+        </div>
+        <div class="card">
+          <div id="reportSummary" class="stat-grid small"></div>
+          <div class="table-wrap"><table id="reportTable"><thead></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- 9. Permissions -->
+      <section class="view" id="view-permissions">
+        <div class="card">
+          <h3>مصفوفة الصلاحيات</h3>
+          <div class="table-wrap">
+            <table id="permTable">
+              <thead><tr><th>المستخدم</th><th>الصلاحيات</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. KPIs -->
+      <section class="view" id="view-kpis">
+        <div class="stat-grid" id="kpiGrid"></div>
+        <div class="dash-grid">
+          <div class="card">
+            <h3>أداء كل قطاع (نسبة الإنجاز)</h3>
+            <div id="kpiBySector" class="bars"></div>
+          </div>
+          <div class="card">
+            <h3>أداء كل فرع مقارنة بالفروع الأخرى</h3>
+            <div id="kpiByBranch" class="bars"></div>
+          </div>
+          <div class="card wide">
+            <h3>مؤشرات كل مدير عام / دائرة</h3>
+            <div class="table-wrap"><table id="kpiTable"><thead></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===== Modal: transaction add/edit/detail ===== -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">تسجيل معاملة جديدة</h3>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
