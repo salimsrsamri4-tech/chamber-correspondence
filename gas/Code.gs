@@ -37,7 +37,9 @@ function jsonOut(obj) {
 function doGet(e) {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  const rows = data.slice(1).filter(function (r) { return r[0] && r[1]; });
+  // نتجاهل فقط صف العناوين الحقيقي (id = 'id')، وليس أول صف بيانات دائماً —
+  // هذا يجعل القراءة صحيحة سواء كانت الورقة تحتوي صف عناوين أو لا.
+  const rows = data.filter(function (r) { return r[0] && r[0] !== 'id' && r[1]; });
   const transactions = rows.map(function (r) { return JSON.parse(r[1]); });
   return jsonOut({ transactions: transactions });
 }
@@ -57,7 +59,7 @@ function doPost(e) {
 
     if (payload.action === 'advance') {
       const data = sheet.getDataRange().getValues();
-      for (let i = 1; i < data.length; i++) {
+      for (let i = 0; i < data.length; i++) {
         if (data[i][0] === payload.id) {
           const t = JSON.parse(data[i][1]);
           t.step = payload.step;
