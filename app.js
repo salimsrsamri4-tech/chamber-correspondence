@@ -92,9 +92,25 @@ function allDepts(){
 function sectorById(id){ return ORG.find(s=>s.id===id); }
 function deptById(id){ return allDepts().find(d=>d.deptId===id); }
 
-/* ============ تخزين محلي ============ */
+/* ============ الخادم (Google Apps Script) أو التخزين المحلي ============ */
+// ضع رابط تطبيق الويب (exec) من Google Apps Script هنا لتفعيل مشاركة البيانات بين كل من يفتح الرابط.
+// اتركه فارغاً للعمل بوضع تجريبي محلي (localStorage) بدون خادم مشترك.
+const API_URL = '';
+function apiEnabled(){ return !!API_URL; }
+
+function apiFetchAll(){
+  return fetch(API_URL, {cache:'no-store'}).then(r=>r.json()).then(d=>d.transactions || []);
+}
+function apiPost(action, data){
+  return fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // يتجنب طلب preflight من Apps Script
+    body: JSON.stringify(Object.assign({action}, data)),
+  }).catch(e=>{ console.error('apiPost failed', e); });
+}
+
 const STORAGE_KEY = 'correspondence_platform_db_v1';
-function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+function saveDB(){ if(!apiEnabled()) localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
 function loadDB(){
   const raw = localStorage.getItem(STORAGE_KEY);
   if(raw){ try{ DB = JSON.parse(raw); return true; }catch(e){} }
@@ -360,6 +376,7 @@ function openTrxModal(id){
     trx.step = Math.min(10, trx.step+1);
     trx.history.push({step:trx.step, at: Date.now()});
     saveDB();
+    if(apiEnabled()) apiPost('advance', {id: trx.id, step: trx.step, history: trx.history});
     openTrxModal(trx.id);
     renderView(currentView);
   });
@@ -367,6 +384,7 @@ function openTrxModal(id){
     trx.step = 10;
     trx.history.push({step:10, at: Date.now()});
     saveDB();
+    if(apiEnabled()) apiPost('advance', {id: trx.id, step: trx.step, history: trx.history});
     openTrxModal(trx.id);
     renderView(currentView);
   });
@@ -775,6 +793,7 @@ function bindEvents(){
       renderView(currentView);
     }
   });
+  $('#refreshServerBtn')?.addEventListener('click', ()=> refreshFromServer(true));
 
   // Transactions view
   $('#addTrxBtn').addEventListener('click', ()=>{ if(!$('#addTrxBtn').disabled) openTrxModal(null); });
@@ -803,16 +822,18 @@ function bindEvents(){
       const subject = $('#f-subject').value.trim();
       const dueDate = $('#f-dueDate').value;
       if(!subject || !dueDate){ alert('يرجى تعبئة الموضوع وتاريخ الإنجاز المطلوب'); return; }
-      const id = 'TRX-' + String(DB.transactions.length+1).padStart(4,'0');
+      const id = 'TRX-' + String(Date.now()).slice(-8);
       const now = Date.now();
-      DB.transactions.unshift({
+      const newTrx = {
         id, date: todayStr(), source: $('#f-source').value, sourceName: $('#f-sourceName').value.trim() || 'غير محدد',
         subject, priority: $('#f-priority').value, confidentiality: $('#f-confidentiality').value,
         sectorId, deptId, branch: dept.branches ? $('#f-branch').value : null,
         dueDate, step: 1, attachments: $('#f-attach').value.trim() ? [$('#f-attach').value.trim()] : [],
         createdAt: now, history: [{step:0, at:now},{step:1, at:now}],
-      });
+      };
+      DB.transactions.unshift(newTrx);
       saveDB();
+      if(apiEnabled()) apiPost('create', {transaction: newTrx});
       closeModal();
       renderView(currentView);
     }
@@ -829,15 +850,44 @@ function bindEvents(){
   });
 }
 
+/* ============ المزامنة مع الخادم ============ */
+function refreshFromServer(manual){
+  if(!apiEnabled()) return;
+  const btn = $('#refreshServerBtn');
+  if(manual && btn) btn.textContent = '⟳ يتم التحديث...';
+  apiFetchAll().then(list=>{
+    DB.transactions = list;
+    renderView(currentView);
+  }).catch(()=>{
+    if(manual) alert('تعذر الاتصال بالخادم. تحقق من الاتصال بالإنترنت أو من رابط الخادم.');
+  }).finally(()=>{
+    if(manual && btn) btn.textContent = '⟳ تحديث من الخادم';
+  });
+}
+
 /* ============ تهيئة ============ */
 function init(){
-  if(!loadDB() || !DB.transactions?.length) seedData();
   populateFilterSelects();
   populateReportGmFilter();
   $('#todayPill').textContent = 'اليوم: ' + new Date().toLocaleDateString('ar-OM', {year:'numeric',month:'long',day:'numeric'});
   bindEvents();
   refreshScopeSelectors();
-  setView('dashboard');
+
+  $('#resetDataBtn').style.display = apiEnabled() ? 'none' : '';
+  $('#refreshServerBtn').style.display = apiEnabled() ? '' : 'none';
+  $('#serverModeBadge').style.display = apiEnabled() ? '' : 'none';
+  $('#localModeBadge').style.display = apiEnabled() ? 'none' : '';
+
+  if(apiEnabled()){
+    apiFetchAll()
+      .then(list=>{ DB.transactions = list; })
+      .catch(()=>{ alert('تعذر الاتصال بالخادم عند التحميل الأول. سيتم استخدام بيانات تجريبية محلية مؤقتاً.'); seedData(); })
+      .finally(()=>{ setView('dashboard'); });
+    setInterval(()=>refreshFromServer(false), 25000);
+  } else {
+    if(!loadDB() || !DB.transactions?.length) seedData();
+    setView('dashboard');
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
