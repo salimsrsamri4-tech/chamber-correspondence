@@ -23,14 +23,25 @@ function getSheet() {
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow(HEADERS);
+    // تنسيق نصي مسبق لأعمدة التاريخ (B, K) لأول 1000 صف لمنع تحويلها التلقائي لتاريخ
+    sheet.getRange('B2:B1000').setNumberFormat('@');
+    sheet.getRange('K2:K1000').setNumberFormat('@');
   }
   return sheet;
+}
+
+// يحوّل القيمة إلى نص تاريخ YYYY-MM-DD حتى لو حوّلتها Google Sheets تلقائياً لكائن تاريخ
+function toDateStr(val) {
+  if (Object.prototype.toString.call(val) === '[object Date]') {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return val;
 }
 
 function rowToTrx(row) {
   return {
     id: row[0],
-    date: row[1],
+    date: toDateStr(row[1]),
     source: row[2],
     sourceName: row[3],
     subject: row[4],
@@ -39,7 +50,7 @@ function rowToTrx(row) {
     sectorId: row[7],
     deptId: row[8],
     branch: row[9] || null,
-    dueDate: row[10],
+    dueDate: toDateStr(row[10]),
     step: Number(row[11]),
     attachments: row[12] ? String(row[12]).split('|').filter(Boolean) : [],
     createdAt: Number(row[13]),
@@ -69,11 +80,17 @@ function doPost(e) {
 
     if (payload.action === 'create') {
       const t = payload.transaction;
-      sheet.appendRow([
+      const rowIndex = sheet.getLastRow() + 1;
+      const rowValues = [
         t.id, t.date, t.source, t.sourceName, t.subject, t.priority, t.confidentiality,
         t.sectorId, t.deptId, t.branch || '', t.dueDate, t.step,
         (t.attachments || []).join('|'), t.createdAt, JSON.stringify(t.history || []),
-      ]);
+      ];
+      // فرض تنسيق نصي على أعمدة التاريخ (date, dueDate) قبل الكتابة لمنع
+      // تحويلها التلقائي إلى كائن تاريخ من Google Sheets، وهو ما يُفسد القيمة.
+      sheet.getRange(rowIndex, 2).setNumberFormat('@');
+      sheet.getRange(rowIndex, 11).setNumberFormat('@');
+      sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
       return jsonOut({ ok: true });
     }
 

@@ -95,7 +95,7 @@ function deptById(id){ return allDepts().find(d=>d.deptId===id); }
 /* ============ الخادم (Google Apps Script) أو التخزين المحلي ============ */
 // ضع رابط تطبيق الويب (exec) من Google Apps Script هنا لتفعيل مشاركة البيانات بين كل من يفتح الرابط.
 // اتركه فارغاً للعمل بوضع تجريبي محلي (localStorage) بدون خادم مشترك.
-const API_URL = '';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzSMkR6sGWEy_LeUKSnpfvyf6O6MfLH84qC2g8XYcQGsnYtKw3b6ST03bk0Pzn3pQgC/exec';
 function apiEnabled(){ return !!API_URL; }
 
 function apiFetchAll(){
