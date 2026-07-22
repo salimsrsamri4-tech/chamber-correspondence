@@ -1,6 +1,8 @@
 /**
  * خلفية Google Apps Script لمنصة إدارة المراسلات والمهام والمتابعة.
- * يخزّن كل معاملة كصف في ورقة "Transactions" ضمن جدول Google Sheets المرتبط بهذا المشروع.
+ * كل معاملة تُخزَّن كصف واحد بعمودين فقط (id, data) في ورقة "Transactions" —
+ * العمود data يحوي كامل بيانات المعاملة كنص JSON، لتجنّب تحويل Google Sheets
+ * التلقائي والمُخرِّب لأي قيمة تُشبه تاريخاً أو رقماً.
  *
  * طريقة الاستخدام:
  * 1) أنشئ جدول بيانات Google Sheets جديد.
@@ -9,13 +11,13 @@
  *    - التنفيذ باسم (Execute as): أنا (Me)
  *    - من يمكنه الوصول (Who has access): أي شخص (Anyone)
  * 4) انسخ رابط تطبيق الويب (exec URL) وضعه في app.js داخل ثابت API_URL.
+ *
+ * لتحديث كود منشور سابقاً: Deploy > Manage deployments > ✏️ > Version: New version > Deploy
+ * (هذا يحافظ على نفس رابط /exec).
  */
 
 const SHEET_NAME = 'Transactions';
-const HEADERS = [
-  'id','date','source','sourceName','subject','priority','confidentiality',
-  'sectorId','deptId','branch','dueDate','step','attachments','createdAt','history'
-];
+const HEADERS = ['id', 'data'];
 
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -23,39 +25,8 @@ function getSheet() {
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow(HEADERS);
-    // تنسيق نصي مسبق لأعمدة التاريخ (B, K) لأول 1000 صف لمنع تحويلها التلقائي لتاريخ
-    sheet.getRange('B2:B1000').setNumberFormat('@');
-    sheet.getRange('K2:K1000').setNumberFormat('@');
   }
   return sheet;
-}
-
-// يحوّل القيمة إلى نص تاريخ YYYY-MM-DD حتى لو حوّلتها Google Sheets تلقائياً لكائن تاريخ
-function toDateStr(val) {
-  if (Object.prototype.toString.call(val) === '[object Date]') {
-    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return val;
-}
-
-function rowToTrx(row) {
-  return {
-    id: row[0],
-    date: toDateStr(row[1]),
-    source: row[2],
-    sourceName: row[3],
-    subject: row[4],
-    priority: row[5],
-    confidentiality: row[6],
-    sectorId: row[7],
-    deptId: row[8],
-    branch: row[9] || null,
-    dueDate: toDateStr(row[10]),
-    step: Number(row[11]),
-    attachments: row[12] ? String(row[12]).split('|').filter(Boolean) : [],
-    createdAt: Number(row[13]),
-    history: row[14] ? JSON.parse(row[14]) : [],
-  };
 }
 
 function jsonOut(obj) {
@@ -66,8 +37,8 @@ function jsonOut(obj) {
 function doGet(e) {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
-  const rows = data.slice(1).filter(function (r) { return r[0]; });
-  const transactions = rows.map(rowToTrx);
+  const rows = data.slice(1).filter(function (r) { return r[0] && r[1]; });
+  const transactions = rows.map(function (r) { return JSON.parse(r[1]); });
   return jsonOut({ transactions: transactions });
 }
 
@@ -80,17 +51,7 @@ function doPost(e) {
 
     if (payload.action === 'create') {
       const t = payload.transaction;
-      const rowIndex = sheet.getLastRow() + 1;
-      const rowValues = [
-        t.id, t.date, t.source, t.sourceName, t.subject, t.priority, t.confidentiality,
-        t.sectorId, t.deptId, t.branch || '', t.dueDate, t.step,
-        (t.attachments || []).join('|'), t.createdAt, JSON.stringify(t.history || []),
-      ];
-      // فرض تنسيق نصي على أعمدة التاريخ (date, dueDate) قبل الكتابة لمنع
-      // تحويلها التلقائي إلى كائن تاريخ من Google Sheets، وهو ما يُفسد القيمة.
-      sheet.getRange(rowIndex, 2).setNumberFormat('@');
-      sheet.getRange(rowIndex, 11).setNumberFormat('@');
-      sheet.getRange(rowIndex, 1, 1, rowValues.length).setValues([rowValues]);
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 2).setValues([[t.id, JSON.stringify(t)]]);
       return jsonOut({ ok: true });
     }
 
@@ -98,8 +59,10 @@ function doPost(e) {
       const data = sheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === payload.id) {
-          sheet.getRange(i + 1, 12).setValue(payload.step);   // عمود step
-          sheet.getRange(i + 1, 15).setValue(JSON.stringify(payload.history)); // عمود history
+          const t = JSON.parse(data[i][1]);
+          t.step = payload.step;
+          t.history = payload.history;
+          sheet.getRange(i + 1, 2).setValue(JSON.stringify(t));
           break;
         }
       }
