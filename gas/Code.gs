@@ -17,7 +17,22 @@
  */
 
 const SHEET_NAME = 'Transactions';
-const HEADERS = ['id', 'data'];
+const HEADERS = ['id', 'data', 'ملخص للقراءة (لا تُعدَّل يدوياً)'];
+const WORKFLOW_STEPS = [
+  'استلام المعاملة', 'تسجيلها', 'عرضها على الرئيس التنفيذي', 'قرار الرئيس التنفيذي',
+  'إحالة للمدير العام المختص', 'إحالة للدائرة', 'تنفيذ المهمة', 'رفع الرد',
+  'اعتماد المدير العام', 'اعتماد الرئيس التنفيذي', 'إغلاق المعاملة',
+];
+
+// نص ملخّص مقروء بجانب عمود JSON، ليسهل تتبّع البيانات بالعين من داخل الجدول مباشرة
+function summaryOf(t) {
+  return [
+    t.subject,
+    'الأولوية: ' + t.priority,
+    'تاريخ الإنجاز: ' + t.dueDate,
+    'المرحلة: ' + (WORKFLOW_STEPS[t.step] || t.step),
+  ].join('   |   ');
+}
 
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -53,7 +68,9 @@ function doPost(e) {
 
     if (payload.action === 'create') {
       const t = payload.transaction;
-      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 2).setValues([[t.id, JSON.stringify(t)]]);
+      const rowIndex = sheet.getLastRow() + 1;
+      sheet.getRange(rowIndex, 1, 1, 3).setNumberFormat('@');
+      sheet.getRange(rowIndex, 1, 1, 3).setValues([[t.id, JSON.stringify(t), summaryOf(t)]]);
       return jsonOut({ ok: true });
     }
 
@@ -64,7 +81,8 @@ function doPost(e) {
           const t = JSON.parse(data[i][1]);
           t.step = payload.step;
           t.history = payload.history;
-          sheet.getRange(i + 1, 2).setValue(JSON.stringify(t));
+          sheet.getRange(i + 1, 2, 1, 2).setNumberFormat('@');
+          sheet.getRange(i + 1, 2, 1, 2).setValues([[JSON.stringify(t), summaryOf(t)]]);
           break;
         }
       }
